@@ -57,6 +57,8 @@ import java.util.stream.Collectors;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -158,8 +160,9 @@ public class ApiApp extends Application {
     public void init() {
         vbox.getChildren().addAll(statusH, preferencesV, recV);
         ObservableList<String> genres = FXCollections.observableArrayList(
-            "Action", "Adventure", "Animation", "Comedy", "Crime", "Drama", "Fantasy",
-            "Horror", "Mystery", "Romance", "Sci-Fi", "Thriller");
+            "Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary",
+            "Drama", "Fantasy", "History", "Horror", "Music", "Mystery",
+            "Romance", "Sci-Fi", "Thriller", "War", "Western");
         ObservableList<String> types = FXCollections.observableArrayList(
             "Show", "Movie");
         ObservableList<String> bounds = FXCollections.observableArrayList(
@@ -178,13 +181,7 @@ public class ApiApp extends Application {
         boundBox.setValue("Min");
         VBox.setVgrow(vbox, Priority.ALWAYS);
 
-        ApiApp recService = new ApiApp();
-        List<String> recommendations = recService.getRecs("movie", 7.0, 10.0, "Action");
-
-        System.out.println("Recommendations:");
-        for (String recommendation : recommendations) {
-            System.out.println(recommendation);
-        } // for
+        getRecs("tv", "8.0", "Romance");
 
         System.out.println("init() called");
     } // init
@@ -218,69 +215,64 @@ public class ApiApp extends Application {
         System.out.println("stop() called");
     } // stop
 
-    public class IMDbProgram {
-        String type;
-        double imdbRating;
-        String genreTwo;
+    public class TMDbResult {
+        String[] genre_ids;
+        String overview;
+        String poster_path;
         String title;
+        String vote_average;
+    } // TMDbResult
 
-        // Getter for 'type'
-        public String getType() {
-            return type;
-        }
+    private class TMDbResponse {
+        int page;
+        TMDbResult[] results;
+    } // TMDbResponse
 
-        // Getter for 'imdbRating'
-        public double getIMDbRating() {
-            return imdbRating;
-        }
-
-        // Getter for 'genreTwo'
-        public String getGenre() {
-            return genre;
-        }
-
-        // Getter for 'title'
-        public String getTitle() {
-            return title;
-        }
-
-    } // IMDbProgram
-
-    private List<String> getRecs(String titleType, double minRating,
-    double maxRating, String genre) {
-        List<String> recommendations = new ArrayList<>();
-
+    private TMDbResponse getRecs(String titleType, String minRating, String genre) {
+        TMDbResponse tmdbResponse = null;
         try {
-            apiUrl = new URL("https://imdb-api.com/API/AdvancedSearch/k_21eqc28g");
-            URL url = new URL(apiURL);
-            HttpURLConnection connection = (HttpURLConnection) apiUrl.openConnection();
-            InputStreamReader reader = new InputStreamReader(connection.getInputStream());
+            String genreID = Integer.toString(getGenreID(genre));
+            String uri = "https://api.themoviedb.org/3/discover/" + titleType +
+                "?vote_average.gte=" + minRating +
+                "&with_genres=" + genreID;
 
-            Gson gson = new Gson();
-            IMDbProgram[] programs = gson.fromJson(reader, IMDbProgram[].class);
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(uri))
+                .header("accept", "application/json")
+                .header("Authorization", "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI5Yz" +
+                "Y4NmFmNzA0NGEyM2FkMmI4MmFlYWMwZGI5YmZjMiIsInN1YiI6IjY1NzY1ZDhmZWM4Y" +
+                "TQzMDBmZDdkNTJlMyIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ." +
+                "Hpo3_aBfHQgG-4egTQ6FFszGMLtKQpPUmpeXJn3xOXg")
+                .method("GET", HttpRequest.BodyPublishers.noBody())
+                .build();
 
-            for (IMDbProgram program : programs) {
-                if (program.getType().equalsIgnoreCase(type)
-                && program.getIMDbRating() >= minRating && program.getIMDbRating() <= maxRating
-                && program.getGenre().equalsIgnoreCase(genre)) {
-                    recommendations.add(program.getTitle());
-                } // if
-            } // for
+            HttpResponse<String> response = HttpClient.newHttpClient()
+                .send(request, HttpResponse.BodyHandlers.ofString());
+            System.out.println(response.body());
 
             /**
-            if (response.code() != 200) {
+            if (response.statusCode() != 200) {
                 IOException ioe = new IOException();
                 String s = uri + "\n404";
                 alertError(ioe, s);
                 uri = "Failed to get recommendations.";
             } // if
             */
+
+            // print out json string
+            String jsonString = response.body();
+            System.out.println("********** RAW JSON STRING: **********");
+            System.out.println(jsonString.trim());
+            tmdbResponse = GSON
+                .fromJson(jsonString, TMDbResponse.class);
+            printTMDbResponse(tmdbResponse);
+
         } catch (Exception e) {
             System.err.println(e);
             e.printStackTrace();
         } // try
 
-        return recommendations;
+        return tmdbResponse;
     } // getRecs
 
     /**
@@ -302,35 +294,81 @@ public class ApiApp extends Application {
         cause.printStackTrace(System.err);
     } // alertError
 
-        /**
+    /**
      * Just prints out the urls and junk and allat to help visualize what I'm working with.
      * Also stolen from code from the last project.
      * @param itunesResponse ItunesResponse.
-     *
-    private static void printIMDbResponse(IMDbResponse imdbResponse) {
+     */
+    private static void printTMDbResponse(TMDbResponse tmdbResponse) {
         System.out.println();
         System.out.println("********** PRETTY JSON STRING: **********");
-        System.out.println(GSON.toJson(imdbResponse));
+        System.out.println(GSON.toJson(tmdbResponse));
         System.out.println();
         System.out.println("********** PARSED RESULTS: **********");
-        System.out.printf("resultCount = %s\n", imdbResponse.resultCount);
-        for (int i = 0; i < imdbResponse.results.length; i++) {
-            IMDbResult result = imdbResponse.totalResults;
-            System.out.printf(" - title = %s\n", result.wrapperType);
-            System.out.printf(" - kind = %s\n", result.kind);
-            System.out.printf(" - artworkUrl100 = %s\n", result.artworkUrl100);
+        System.out.printf("page = %s\n", tmdbResponse.page);
+        for (int i = 0; i < tmdbResponse.results.length; i++) {
+            System.out.printf("tmdbResponse.results[%d]:\n", i);
+            TMDbResult result = tmdbResponse.results[i];
+            for (String genre_id : result.genre_ids) {
+                System.out.printf(" - genre_id = %s\n", genre_id);
+            }
+            System.out.printf(" - overview = %s\n", result.overview);
+            System.out.printf(" - poster_path = %s\n", result.poster_path);
+            System.out.printf(" - title = %s\n", result.title);
+            System.out.printf(" - vote_average = %s\n", result.vote_average);
         } // for
     } // printItunesResponse
-        */
+
 
     private static void runNow() {
     } // runNow
 
+    private int getGenreID(String userFriendlyGenre) {
+        Map<String, Integer> genreMapping = new HashMap<>();
+        genreMapping.put("Action", 28);
+        genreMapping.put("Adventure", 12);
+        genreMapping.put("Action & Adventure", 10759);
+        genreMapping.put("Animation", 16);
+        genreMapping.put("Comedy", 35);
+        genreMapping.put("Documentary", 99);
+        genreMapping.put("Drama", 18);
+        genreMapping.put("Family", 10751);
+        genreMapping.put("Fantasy", 14);
+        genreMapping.put("History", 14);
+        genreMapping.put("Horror", 36);
+        genreMapping.put("Music", 28);
+        genreMapping.put("Mystery", 28);
+        genreMapping.put("Romance", 28);
+        genreMapping.put("Science Fiction", 28);
+        genreMapping.put("TV Movie", 28);
+        genreMapping.put("Thriller", 28);
+        genreMapping.put("War", 28);
+        genreMapping.put("Western", 28);
+        genreMapping.put("Adventure",    12);
+        genreMapping.put("Action", 28);
+        genreMapping.put("Animation", 16);
+        genreMapping.put("Comedy", 35);
+        genreMapping.put("Crime", 80);
+        genreMapping.put("Documentary", 99);
+        genreMapping.put("Drama", 18);
+        genreMapping.put("Family", 10751);
+        genreMapping.put("Fantasy", 14);
+        genreMapping.put("History", 36);
+        genreMapping.put("Horror", 27);
+        genreMapping.put("Music", 10402);
+        genreMapping.put("Mystery", 9648);
+        genreMapping.put("Romance", 10749);
+        genreMapping.put("Science Fiction", 878);
+        genreMapping.put("Sci-Fi & Fantasy", 10765);
+        genreMapping.put("Soap", 10766);
+        genreMapping.put("Talk", 10767);
+        genreMapping.put("TV Movie", 10770);
+        genreMapping.put("Thriller", 53);
+        genreMapping.put("War", 10752);
+        genreMapping.put("War & Politics", 10768);
+        genreMapping.put("Western", 37);
+        return genreMapping.get(userFriendlyGenre);
+    }
 
-    /**
-    private something getStreamSites(String imdbId) {
-        //
-        }
-    */
 
 } // ApiApp
