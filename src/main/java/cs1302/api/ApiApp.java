@@ -1,74 +1,55 @@
 package cs1302.api;
 
-import javafx.application.Application;
-import javafx.application.Platform;
-
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
-
-import javafx.scene.control.Label;
-import javafx.scene.control.Button;
-import javafx.scene.control.TextField;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Alert.AlertType;
-
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
-import javafx.scene.layout.Priority;
-
-import javafx.scene.image.ImageView;
-import javafx.scene.image.Image;
-
-import javafx.scene.Node;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
-
-import javafx.geometry.Pos;
-import javafx.geometry.Insets;
-
-import javafx.animation.PauseTransition;
-import javafx.util.Duration;
-import javafx.geometry.Pos;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.concurrent.Task;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonSyntaxException;
-
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.URISyntaxException;
+import java.net.URL;
 import java.net.URLEncoder;
-
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.net.http.HttpResponse.BodyHandlers;
-
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.annotations.SerializedName;
+
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 
 /**
- * REPLACE WITH NON-SHOUTING DESCRIPTION OF YOUR APP.
+ * Integrates TMDb's API with Watchmode's API to help
+ * produce program recommendations on the user's mood.
+ * Will ask for type of program (movie or show), the genre
+ * of the program, then the minimum user rating of the program.
+ * TMDb's API is used to fetch the movie recommendations,
+ * the Watchmode api is used to show the user where the program
+ * is available to watch.
  */
 public class ApiApp extends Application {
 
@@ -83,6 +64,8 @@ public class ApiApp extends Application {
         .setPrettyPrinting()                          // enable nice output when printing
         .create();                                    // builds and returns a Gson object
 
+    private static final String DEF_IMG = "resources/default.png";
+
     private Stage stage;
     private Scene scene;
     private VBox root;
@@ -90,12 +73,11 @@ public class ApiApp extends Application {
     private VBox vbox;
 
     private HBox statusH;
-    private Button aboutMe;
+    private Button aboutMeButton;
     private Label statusLabel;
     private String uri;
 
-    private VBox preferencesV;
-
+    private HBox preferencesH;
     private HBox typeH;
     private Label typeLabel;
     private ComboBox<String> typeBox;
@@ -106,17 +88,34 @@ public class ApiApp extends Application {
 
     private HBox imdbH;
     private Label boundLabel;
-    private ComboBox<String> boundBox;
     private TextField boundField;
 
-    private Button getRecs;
+    private TMDbResponse tmdbResponse;
+    private Button getRecsButton;
 
-    private VBox recV;
-    private ImageView[] posters;
-    private Label movieInfo;
-    private Button next;
+    private HBox recH;
+    private int currentRecIndex = 0;
+    private ImageView postersImageView;
+    private Image postersImage;
+    private TextArea movieInfo;
+
+    private String tmdbPosterPath;
+    private String baseUrl;
+    private String fullUrl;
+    private Set<String> visitedTitles;
+
+    private VBox left;
+    private VBox right;
+
+    private HBox bottom;
+    private Button nextButton;
+
+    private HBox spacer;
+
+    Map<String, Integer> genreMapping = new HashMap<>();
 
     URL apiUrl;
+
 
     /**
      * Constructs an {@code ApiApp} object. This default (i.e., no argument)
@@ -126,87 +125,126 @@ public class ApiApp extends Application {
         this.scene = null;
         this.root = new VBox();
         vbox = new VBox(); //
-        vbox.setMaxWidth(600);
-        vbox.setMaxHeight(605);
-        statusH = new HBox(10); //
-        statusH.setPadding(new Insets(10, 10, 10, 10));
-        aboutMe = new Button("About Me");
+        vbox.setMinWidth(500);
+        vbox.setMinHeight(550);
+        vbox.setSpacing(10);
+        statusH = new HBox(); //
+        statusH.setSpacing(10);
+        statusH.setMinWidth(500);
+        statusH.setPadding(new Insets(0, 0, 0, 5));
         statusLabel = new Label("Put your preferences below");
         uri = new String();
-        preferencesV = new VBox(5); //
+        preferencesH = new HBox(); //
+        preferencesH.setMinWidth(500);
+        preferencesH.setMinHeight(50);
         typeH = new HBox(5); //
-        typeLabel = new Label("Show or Movie?");
+        typeLabel = new Label("Type?");
         typeBox = new ComboBox<>();
+        HBox.setHgrow(typeBox, Priority.ALWAYS);
         genreH = new HBox(5); //
-        // genreH.setPadding(new Insets(10, 10,));
-        moodLabel = new Label("What are you in the mood for?");
+        genreH.setPadding(new Insets(10, 0, 0, 0));
+        moodLabel = new Label("Genre?");
         genreBox = new ComboBox<>();
+        HBox.setHgrow(genreBox, Priority.ALWAYS);
         imdbH = new HBox(5); //
-        boundLabel = new Label("Enter your desired IMDb rating");
-        boundBox = new ComboBox<>();
+        boundLabel = new Label("User Rating");
         boundField = new TextField();
-        getRecs = new Button("Get Recommendations"); //
-        getRecs.setMinWidth(80);
-        getRecs.setMinHeight(10);
-        recV = new VBox(15); //
-        posters = new ImageView[25];
-        movieInfo = new Label();
-        next = new Button("Next Movie");
-
+        HBox.setHgrow(boundField, Priority.ALWAYS);
+        spacer = new HBox();
+        spacer.setMinHeight(7);
+        spacer.setMinWidth(10);
+        getRecsButton = new Button("Get Recommendations"); //
+        getRecsButton.setMinWidth(80);
+        getRecsButton.setMinHeight(10);
+        recH = new HBox(); //
+        recH.setMinWidth(500);
+        recH.setMinHeight(400);
+        postersImageView = new ImageView();
+        postersImage = new Image("file:" + DEF_IMG);
+        postersImageView.setImage(postersImage);
+        movieInfo = new TextArea();
+        movieInfo.setEditable(false);
+        movieInfo.setMaxWidth(200);
+        movieInfo.setWrapText(true);
+        movieInfo.setPrefRowCount(10);
+        visitedTitles = new HashSet<>();
+        bottom = new HBox();
+        nextButton = new Button("Next Recommendation");
+        left = new VBox();
+        right = new VBox();
+        initializeGenreMapping(genreMapping);
     } // ApiApp
 
     /**{@inheritDoc}**/
     @Override
     public void init() {
-        vbox.getChildren().addAll(statusH, preferencesV, recV);
+        vbox.getChildren().addAll(statusH, preferencesH, recH, bottom);
         ObservableList<String> genres = FXCollections.observableArrayList(
             "Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary",
             "Drama", "Fantasy", "History", "Horror", "Music", "Mystery",
             "Romance", "Sci-Fi", "Thriller", "War", "Western");
         ObservableList<String> types = FXCollections.observableArrayList(
-            "Show", "Movie");
-        ObservableList<String> bounds = FXCollections.observableArrayList(
-            "Min", "Max");
-        final ComboBox<String> genreBox = new ComboBox(genres);
-        final ComboBox<String> typeBox = new ComboBox(types);
-        final ComboBox<String> boundBox = new ComboBox(bounds);
+            "TV", "Movie");
+        genreBox = new ComboBox(genres);
+        typeBox = new ComboBox(types);
         genreBox.setValue("Drama");
-        statusH.getChildren().addAll(aboutMe, statusLabel);
-        preferencesV.getChildren().addAll(typeH, genreH, imdbH, getRecs);
+        aboutMeButton = new Button("About Me");
+        statusH.getChildren().addAll(aboutMeButton, spacer, statusLabel);
+        preferencesH.getChildren().addAll(left, spacer, right);
+        left.getChildren().addAll(typeH, spacer, genreH);
+        right.getChildren().addAll(imdbH, spacer, getRecsButton);
         typeH.getChildren().addAll(typeLabel, typeBox);
         typeBox.setValue("Movie");
+        typeBox.setMinWidth(12);
         genreH.getChildren().addAll(moodLabel, genreBox);
         genreBox.setValue("Drama");
-        imdbH.getChildren().addAll(boundLabel, boundBox, boundField);
-        boundBox.setValue("Min");
+        genreBox.setMinWidth(10);
+        imdbH.getChildren().addAll(boundLabel, boundField);
+        boundField.setMaxWidth(135);
         VBox.setVgrow(vbox, Priority.ALWAYS);
-
-        getRecs("tv", "8.0", "Romance");
-
+        recH.getChildren().addAll(postersImageView, movieInfo);
+        recH.setMaxHeight(720);
+        postersImageView.setImage(postersImage);
+        postersImageView.setFitHeight(400);
+        postersImageView.setFitWidth(300);
+        bottom.getChildren().addAll(nextButton);
+        typeH.setMargin(typeBox, new Insets(0, 10, 0, 0));
+        HBox.setMargin(left, new Insets(0, 5, 0, 0));
+        HBox.setMargin(right, new Insets(0, 0, 0, 5));
+        vbox.setPadding(new Insets(10));
+        nextButton.setDisable(true);
+        nextButton.setStyle("-fx-opacity: 0.5;");
+        getRecsButton.setOnAction(e -> getRecsPressed());
+        nextButton.setOnAction(e -> {
+            currentRecIndex++;
+            if (currentRecIndex == tmdbResponse.results.length) {
+                currentRecIndex = 0;
+            } // if
+            System.out.println(currentRecIndex);
+            displayRecommendation(tmdbResponse, currentRecIndex);
+        }); // nextButton
+        aboutMeButton.setOnAction(e -> openAboutMe());
         System.out.println("init() called");
     } // init
-
 
     /** {@inheritDoc} */
     @Override
     public void start(Stage stage) {
-
         this.stage = stage;
         this.root = new VBox();
         this.scene = new Scene(this.root);
         this.stage.setMaxWidth(1280);
         this.stage.setMaxHeight(720);
-
-        this.stage.setTitle("Movie Picker!");
-
+        this.stage.setTitle("What To Watch?");
         vbox.setAlignment(Pos.CENTER);
         this.root.getChildren().add(vbox);
-
         this.stage.setScene(scene);
         this.stage.setOnCloseRequest(event -> Platform.exit());
         this.stage.sizeToScene();
         this.stage.show();
+
         Platform.runLater(() -> this.stage.setResizable(false));
+
     } // start
 
     /**{@inheritDoc}**/
@@ -215,65 +253,252 @@ public class ApiApp extends Application {
         System.out.println("stop() called");
     } // stop
 
+    /** Represents results from the TMDb API. */
     public class TMDbResult {
-        String[] genre_ids;
+        @SerializedName("genre_ids")
+        String[] genreIds;
         String overview;
-        String poster_path;
+        @SerializedName("poster_path")
+        String posterPath;
         String title;
-        String vote_average;
-    } // TMDbResult
+        String name;
+        @SerializedName("vote_average")
+        String voteAverage;
+        String id;
+        private MediaSource[] mediaSources;
+    } // IMDbProgram
 
-    private class TMDbResponse {
+    /** Represents results from the TMDb API. */
+    public class TMDbResponse {
         int page;
         TMDbResult[] results;
-    } // TMDbResponse
+    }
 
+    /** Represents results from the Watchmode API. */
+    public class MediaSource {
+        @SerializedName("source_id")
+        int sourceId;
+        String name;
+        String type;
+        @SerializedName("web_url")
+        String webUrl;
+    }
+
+    /**
+     * Gets the recommendations based on the user's preferences,
+     * creating a search query for the TMDb API.
+     *
+     * @param titleType String.
+     * @param minRating String.
+     * @param genre String.
+     * @return tmdbResponse TMDbResponse
+     */
     private TMDbResponse getRecs(String titleType, String minRating, String genre) {
         TMDbResponse tmdbResponse = null;
+
         try {
-            String genreID = Integer.toString(getGenreID(genre));
+            String genreID = Integer.toString(getGenreID(genreMapping, genre));
             String uri = "https://api.themoviedb.org/3/discover/" + titleType +
-                "?vote_average.gte=" + minRating +
-                "&with_genres=" + genreID;
+                         "?vote_average.gte=" + minRating +
+                         "&with_genres=" + genreID;
 
             HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(uri))
-                .header("accept", "application/json")
-                .header("Authorization", "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI5Yz" +
-                "Y4NmFmNzA0NGEyM2FkMmI4MmFlYWMwZGI5YmZjMiIsInN1YiI6IjY1NzY1ZDhmZWM4Y" +
-                "TQzMDBmZDdkNTJlMyIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ." +
-                "Hpo3_aBfHQgG-4egTQ6FFszGMLtKQpPUmpeXJn3xOXg")
-                .method("GET", HttpRequest.BodyPublishers.noBody())
-                .build();
+                    .uri(URI.create(uri))
+                    .header("accept", "application/json")
+                    .header("Authorization",
+                    "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIzMjY5NDJj" +
+                    "Yjg4NDkxN2U5YjcyMThiY2JhMzAzM2I1OCIsInN1YiI6IjY1" +
+                    "NzY1ZDgyODlkOTdmMDBhZWZiYmYzMiIsInNjb3BlcyI6WyJh" +
+                    "cGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.iCYRCoEu1fMRXsgjGLZT-pJ5SbU7gWTV7jHSRWeQHYs")
+                    .method("GET", HttpRequest.BodyPublishers.noBody())
+                    .build();
 
-            HttpResponse<String> response = HttpClient.newHttpClient()
-                .send(request, HttpResponse.BodyHandlers.ofString());
-            System.out.println(response.body());
-
-            /**
-            if (response.statusCode() != 200) {
-                IOException ioe = new IOException();
-                String s = uri + "\n404";
-                alertError(ioe, s);
-                uri = "Failed to get recommendations.";
-            } // if
-            */
-
-            // print out json string
+            HttpResponse<String> response = HttpClient.newHttpClient().send(
+                request, HttpResponse.BodyHandlers.ofString());
             String jsonString = response.body();
-            System.out.println("********** RAW JSON STRING: **********");
-            System.out.println(jsonString.trim());
-            tmdbResponse = GSON
-                .fromJson(jsonString, TMDbResponse.class);
-            printTMDbResponse(tmdbResponse);
-
+            tmdbResponse = GSON.fromJson(jsonString, TMDbResponse.class);
+            printTMDbResponse(tmdbResponse, titleType);
         } catch (Exception e) {
-            System.err.println(e);
             e.printStackTrace();
         } // try
 
+        if (tmdbResponse.results.length == 0) {
+            IllegalStateException ise = new IllegalStateException();
+            String s = "No recommendations found :(";
+            alertError(ise, s);
+            statusLabel.setText("Last attempt to get recommendations failed");
+        } // alertError
+
         return tmdbResponse;
     } // getRecs
+
+    /**
+     * Gets the streaming availability of the recommendations,
+     * using the Watchmode API.
+     *
+     * @param titleType String.
+     * @param tmdbresult TMDbResult.
+     * @return mediaSources MediaSource.
+     */
+    private MediaSource[] getStreamingSources(String titleType, TMDbResult tmdbresult) {
+        MediaSource[] mediaSources = null;
+
+        try {
+            String apiKey = "YpAN6K13oKNnWZm2n3rjkAix24WouDWcUT8z28X1";
+            String regionCode = "US";
+            String apiTitleID = String.format("%s-%s", titleType, tmdbresult.id);
+            String apiUrl = String.format
+                ("https://api.watchmode.com/v1/title/%s/sources/?apiKey=%s&regions=%s",
+                    apiTitleID, apiKey, regionCode);
+            URL url = new URL(apiUrl);
+            System.out.println(url.toString());
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            int responseCode = connection.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                BufferedReader in = new BufferedReader(
+                    new InputStreamReader(connection.getInputStream()));
+                String inputLine;
+                StringBuilder response = new StringBuilder();
+                while ((inputLine = in.readLine()) != null) {
+                    response.append(inputLine);
+                }
+                in.close();
+                mediaSources = GSON.fromJson(response.toString(), MediaSource[].class);
+            } else {
+                System.out.println("Error: " + responseCode);
+            }
+            connection.disconnect();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } // if
+
+        return mediaSources;
+    } // getMediaSources
+
+
+    /**
+     * Code that helps me visualize my output.
+     * @param tmdbResponse TMDbResponse.
+     * @param titleType String.
+     */
+    public static void printTMDbResponse(TMDbResponse tmdbResponse, String titleType) {
+        for (TMDbResult result : tmdbResponse.results) {
+            String contentName = getTitle(result, titleType);
+            // System.out.println("genre ids:");
+            // for(String genre_id : result.genre_ids)
+            //     System.out.println("\t" + genre_id);
+            // System.out.println("overview: \n\t" + result.overview);
+            // System.out.println("poster path: \n\t" + result.poster_path);
+            // System.out.println("title: \n\t" + result.title);
+            // System.out.println("vote average: \n\t" + result.vote_average + "\n");
+            System.out.println("content name: " + contentName + " id: " + result.id);
+        }
+    }
+
+    /**
+     * Code that helps me visualize my output.
+     * @param tmdbResponse TMDbResponse.
+     * @param titleType String.
+     */
+    public static void printMediaSources(String titleType, TMDbResponse tmdbResponse) {
+        for (TMDbResult result : tmdbResponse.results) {
+            String contentName = getTitle(result, titleType);
+            if (result.mediaSources != null) {
+                for (MediaSource source : result.mediaSources) {
+                    System.out.println("content name: " + contentName + "\tsource: " + source.name);
+                }
+            } else {
+                System.out.println("content name: " + contentName + "\tsource: null");
+            }
+        }
+    } // printMediaSources
+
+    /**
+     * Displays the movie recommendation one a time for the user.
+     *
+     * @param tmdbResponse TMDbResponse.
+     * @param currentRecIndex int.
+     */
+    private void displayRecommendation(TMDbResponse tmdbResponse, int currentRecIndex) {
+        TMDbResult result = tmdbResponse.results[currentRecIndex];
+
+        try {
+            String basePosterPathUrl = "https://image.tmdb.org/t/p/w500";
+            String fullPosterPathUrl = basePosterPathUrl + result.posterPath;
+            postersImageView = new ImageView();
+            postersImage = new Image(fullPosterPathUrl);
+            postersImageView.setImage(postersImage);
+            postersImageView.setFitWidth(300);
+            postersImageView.setFitHeight(400);
+            postersImageView.setPreserveRatio(true);
+            System.out.println(fullPosterPathUrl);
+        } catch (Exception e) {
+            System.err.println("Error loading image: " + e.getMessage());
+        }
+
+        String recommendationInfo = buildRecommendationInfo(result);
+
+        movieInfo.setText(recommendationInfo);
+        recH.getChildren().clear();
+        recH.getChildren().addAll(postersImageView, movieInfo);
+        nextButton.setDisable(false);
+        nextButton.setStyle("-fx-opacity: 1.0;");
+    } // displayRecommendation
+
+    /**
+     * Gets movie title.
+     *
+     * @param result TMDbResult.
+     * @param titleType String.
+     * @return titleType String.
+     */
+    private static String getTitle(TMDbResult result, String titleType) {
+        return titleType.equals("movie") ? result.title : result.name;
+    } //getTitle
+
+    /**
+     * Builds the recommendation info.
+     *
+     * @param result TMDbResult.
+     * @return recommendationInfo String.
+     */
+    private String buildRecommendationInfo(TMDbResult result) {
+        String title = (result.title != null) ? result.title : "Not available";
+        String overview = (result.overview != null) ? result.overview : "Not available";
+        String voteAverage = (result.voteAverage != null) ? result.voteAverage : "Not available";
+        String recommendationInfo = String.format(
+            "TITLE: %s\nOVERVIEW: %s", title, overview);
+
+        List<String> genres = new ArrayList<>();
+        for (String genreId : result.genreIds) {
+            String userFriendlyGenre = getUserFriendlyGenre(
+                genreMapping, Integer.parseInt(genreId));
+            genres.add(userFriendlyGenre);
+        }
+        recommendationInfo += "\nGENRE: " + String.join(", ", genres);
+        recommendationInfo += "\nUSER RATINGS: " + voteAverage;
+        Set<String> uniqueStreamingSources = new HashSet<>();
+        List<String> streamingServiceNames = new ArrayList<>();
+        if (result.mediaSources != null) {
+            if (result.mediaSources.length > 0) {
+                for (MediaSource source : result.mediaSources) {
+                    String streamingServiceName = source.name;
+                    if (uniqueStreamingSources.add(streamingServiceName)) {
+                        streamingServiceNames.add(streamingServiceName);
+                    } // if
+                } // for
+
+                recommendationInfo += "\nStreaming Services: "
+                    + String.join(", ", streamingServiceNames);
+            } else {
+                recommendationInfo += "\nStreaming Services: Not available";
+            } // if
+        } else {
+            recommendationInfo += "\nStreaming Services: Not available";
+        } // if
+
+        return recommendationInfo;
+    } // buildRecommendationInfo
 
     /**
      * Error alert stolen from project 4.
@@ -295,36 +520,11 @@ public class ApiApp extends Application {
     } // alertError
 
     /**
-     * Just prints out the urls and junk and allat to help visualize what I'm working with.
-     * Also stolen from code from the last project.
-     * @param itunesResponse ItunesResponse.
+     * Maps the Genre IDs into readable words.
+     *
+     * @param genreMapping Map.
      */
-    private static void printTMDbResponse(TMDbResponse tmdbResponse) {
-        System.out.println();
-        System.out.println("********** PRETTY JSON STRING: **********");
-        System.out.println(GSON.toJson(tmdbResponse));
-        System.out.println();
-        System.out.println("********** PARSED RESULTS: **********");
-        System.out.printf("page = %s\n", tmdbResponse.page);
-        for (int i = 0; i < tmdbResponse.results.length; i++) {
-            System.out.printf("tmdbResponse.results[%d]:\n", i);
-            TMDbResult result = tmdbResponse.results[i];
-            for (String genre_id : result.genre_ids) {
-                System.out.printf(" - genre_id = %s\n", genre_id);
-            }
-            System.out.printf(" - overview = %s\n", result.overview);
-            System.out.printf(" - poster_path = %s\n", result.poster_path);
-            System.out.printf(" - title = %s\n", result.title);
-            System.out.printf(" - vote_average = %s\n", result.vote_average);
-        } // for
-    } // printItunesResponse
-
-
-    private static void runNow() {
-    } // runNow
-
-    private int getGenreID(String userFriendlyGenre) {
-        Map<String, Integer> genreMapping = new HashMap<>();
+    private static void initializeGenreMapping(Map<String, Integer> genreMapping) {
         genreMapping.put("Action", 28);
         genreMapping.put("Adventure", 12);
         genreMapping.put("Action & Adventure", 10759);
@@ -367,8 +567,120 @@ public class ApiApp extends Application {
         genreMapping.put("War", 10752);
         genreMapping.put("War & Politics", 10768);
         genreMapping.put("Western", 37);
-        return genreMapping.get(userFriendlyGenre);
-    }
+    } //initializeGenreMapping
 
+    /**
+     * Gets the Genre IDs from TMDb responses.
+     * @param genreMapping Map.
+     * @param userFriendlyGenre String.
+     * @return genreMapping Map.
+     */
+    private static int getGenreID(Map<String, Integer> genreMapping, String userFriendlyGenre) {
+        System.out.println(userFriendlyGenre);
+        return genreMapping.get(userFriendlyGenre);
+    } // getGenreID
+
+    /**
+     * Converts the Genre IDs to readable text.
+     * @param genreMapping Map.
+     * @param genreID int.
+     * @return entry Map.
+     */
+    private static String getUserFriendlyGenre(Map<String, Integer> genreMapping, int genreID) {
+        for (Map.Entry<String, Integer> entry : genreMapping.entrySet()) {
+            if (entry.getValue() == genreID) {
+                return entry.getKey();
+            } // if
+        } // for
+
+        return "Unknown Genre";
+    } // getUserFriendlyGenre
+
+    /**
+     * Opens the about me stage.
+     */
+    private void openAboutMe() {
+        Stage aboutMeStage = new Stage();
+        aboutMeStage.setTitle("About Me");
+        TextArea aboutMeTextArea = new TextArea();
+        aboutMeTextArea.setMinWidth(400.0);
+        aboutMeTextArea.setMinHeight(300.0);
+        aboutMeTextArea.setEditable(false);
+        aboutMeTextArea.setWrapText(true);
+        aboutMeTextArea.setText(" \"What To Watch\" is an app that " +
+                "integrates the TMDb API and the Watchmode API! It builds a " +
+                "search query with the TMDb API using an Http Request. It creates " +
+                "tv or movie recommendations based on the user's preferences. " +
+                "It then takes the response from TMDb and sends it to Watchmode's API " +
+                "to show where the program can be watched! " +
+                "To start, choose type of program, then preferred genre, then enter a " +
+                "double value from 0.0 to 10.0 in the User Rating field, then click the button! " +
+                "If you are unsatisfied with the recommendation, click the next recommendation " +
+                "to get another movie displayed to you. \n\n Note: the Watchmode API has 1000 " +
+                "uses per month. Once it runs out, a 402 message will display in the terminal, " +
+                "but the rest of the program should work fine! Thanks!");
+        VBox aboutMeV = new VBox(10);
+        aboutMeV.getChildren().add(aboutMeTextArea);
+        Scene aboutMeScene = new Scene(aboutMeV, 400, 350);
+        aboutMeStage.setScene(aboutMeScene);
+        aboutMeStage.show();
+    } // openAboutMe
+
+    /**
+     * Event handler for getRecsButton.
+     */
+    private void getRecsPressed() {
+        statusLabel.setText("Getting Recommendations...");
+
+        String titleType = URLEncoder.encode(typeBox.getValue()
+            .toLowerCase(), StandardCharsets.UTF_8);
+        String genre = URLEncoder.encode(genreBox.getValue(),
+            StandardCharsets.UTF_8);
+        String minRating = URLEncoder.encode(boundField.getText(),
+            StandardCharsets.UTF_8);
+        double value = 0.0;
+        System.out.println(titleType);
+
+        try {
+            value = Double.parseDouble(minRating);
+        } catch (NumberFormatException exception) {
+            exception.printStackTrace();
+            String s = uri +
+                "Please enter a Double value, from 0.0 to 10.0";
+            alertError(exception, s);
+            statusLabel.setText("Last attempt to get recommendations failed");
+            return;
+        }
+        if (!minRating.isEmpty()) {
+            value = Double.parseDouble(minRating);
+        } else {
+            value = 0.0;
+        }
+
+        if (value >= 0.0 && value <= 10.0) {
+            System.out.println(titleType);
+            System.out.println(genre);
+            System.out.println(minRating);
+            try {
+                tmdbResponse = getRecs(titleType, minRating, genre);
+                for (TMDbResult result : tmdbResponse.results) {
+                    result.mediaSources = getStreamingSources(titleType, result);
+                    statusLabel.setText(uri);
+                } // for
+                if (tmdbResponse != null && tmdbResponse.results.length > 0) {
+                    displayRecommendation(tmdbResponse, currentRecIndex);
+                    statusLabel.setText(uri);
+                } // if
+            } catch (Exception exception) {
+                exception.printStackTrace();
+            } // try
+        } else {
+            IllegalArgumentException iae = new IllegalArgumentException();
+            String s = uri +
+                "Please enter a Double value, from 0.0 to 10.0";
+            alertError(iae, s);
+            statusLabel.setText("Last attempt to get recommendations failed");
+        }
+    } // getRecsButton
 
 } // ApiApp

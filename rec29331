@@ -1,0 +1,119 @@
+cs1302-api-app:
+total 72
+-rw-r--r--. 1 myid  9445 Dec  7 18:02 APPENDIX_API.rst
+-rw-r--r--. 1 myid  4205 Dec  7 18:02 APPENDIX_GIT.rst
+drwxr-xr-x. 2 myid    33 Dec 11 23:24 meta
+-rw-r--r--. 1 myid  8370 Dec 10 16:14 pom.xml
+-rwxr-xr-x. 1 myid   105 Dec  7 18:02 prepare-merge.sh
+-rw-r--r--. 1 myid 31214 Dec  7 18:02 README.rst
+-rw-r--r--. 1 myid     0 Dec 11 23:27 rec29331
+drwxr-xr-x. 2 myid   159 Dec 11 11:33 resources
+-rwxr-xr-x. 1 myid   119 Dec  7 18:02 run.sh
+drwxr-xr-x. 4 myid    42 Dec  7 18:02 src
+drwxr-xr-x. 5 myid   104 Dec 11 23:25 target
+
+cs1302-api-app/meta:
+total 4
+-rw-r--r--. 1 myid 2665 Dec 11 23:24 DEADLINE.md
+
+cs1302-api-app/resources:
+total 2100
+-rw-r--r--. 1 myid      42 Dec  7 18:02 config.properties
+-rw-r--r--. 1 myid    4730 Dec 11 05:29 default.png
+-rw-r--r--. 1 myid     968 Dec 11 11:33 photo_size_actual.png
+-rw-r--r--. 1 myid     984 Dec 11 11:33 photo_size_shrink.png
+-rw-r--r--. 1 myid  582183 Dec  7 18:02 readme-banner.png
+-rw-r--r--. 1 myid 1540930 Dec  7 18:02 readme-newrepo.png
+
+cs1302-api-app/src:
+total 0
+drwxr-xr-x. 3 myid 26 Dec  7 18:02 main
+drwxr-xr-x. 3 myid 50 Dec  7 18:02 site
+
+cs1302-api-app/src/main:
+total 0
+drwxr-xr-x. 3 myid 56 Dec 10 16:42 java
+
+cs1302-api-app/src/main/java:
+total 4
+drwxr-xr-x. 3 myid  25 Dec  7 18:02 cs1302
+-rw-r--r--. 1 myid 373 Dec 10 16:42 module-info.java
+
+cs1302-api-app/src/main/java/cs1302:
+total 0
+drwxr-xr-x. 2 myid 110 Dec 11 23:03 api
+
+cs1302-api-app/src/main/java/cs1302/api:
+total 44
+-rw-r--r--. 1 myid 26280 Dec 11 23:03 ApiApp.java
+-rw-r--r--. 1 myid  1285 Dec  7 18:02 ApiDriver.java
+-rw-r--r--. 1 myid  4332 Dec  7 18:02 OpenLibrarySearchApi.java
+-rw-r--r--. 1 myid  1670 Dec  7 18:02 PropertiesExample.java
+
+cs1302-api-app/src/site:
+total 4
+drwxr-xr-x. 2 myid  33 Dec  7 18:02 markdown
+-rw-r--r--. 1 myid 424 Dec  7 18:02 site.xml
+
+cs1302-api-app/src/site/markdown:
+total 4
+-rw-r--r--. 1 myid 133 Dec  7 18:02 index.md.vm
+
+cs1302-api-app/target:
+total 4
+drwxr-xr-x. 3 myid  234 Dec 11 23:25 classes
+drwxr-xr-x. 3 myid   33 Dec 11 23:25 generated-sources
+drwxr-xr-x. 3 myid   43 Dec 11 23:25 maven-status
+-rw-r--r--. 1 myid 1273 Dec 11 23:25 modulepath
+
+cs1302-api-app/target/classes:
+total 2104
+-rw-r--r--. 1 myid      42 Dec 11 23:25 config.properties
+drwxr-xr-x. 3 myid      17 Dec 11 23:25 cs1302
+-rw-r--r--. 1 myid    4730 Dec 11 23:25 default.png
+-rw-r--r--. 1 myid     354 Dec 11 23:25 module-info.class
+-rw-r--r--. 1 myid     968 Dec 11 23:25 photo_size_actual.png
+-rw-r--r--. 1 myid     984 Dec 11 23:25 photo_size_shrink.png
+-rw-r--r--. 1 myid  582183 Dec 11 23:25 readme-banner.png
+-rw-r--r--. 1 myid 1540930 Dec 11 23:25 readme-newrepo.png
+
+cs1302-api-app/target/classes/cs1302:
+total 4
+drwxr-xr-x. 2 myid 4096 Dec 11 23:25 api
+
+cs1302-api-app/target/classes/cs1302/api:
+total 60
+-rw-r--r--. 1 myid 24080 Dec 11 23:25 ApiApp.class
+-rw-r--r--. 1 myid   695 Dec 11 23:25 ApiApp$MediaSource.class
+-rw-r--r--. 1 myid   594 Dec 11 23:25 ApiApp$TMDbResponse.class
+-rw-r--r--. 1 myid   920 Dec 11 23:25 ApiApp$TMDbResult.class
+-rw-r--r--. 1 myid  1503 Dec 11 23:25 ApiDriver.class
+-rw-r--r--. 1 myid  5993 Dec 11 23:25 OpenLibrarySearchApi.class
+-rw-r--r--. 1 myid   493 Dec 11 23:25 OpenLibrarySearchApi$OpenLibraryDoc.class
+-rw-r--r--. 1 myid   617 Dec 11 23:25 OpenLibrarySearchApi$OpenLibraryResult.class
+-rw-r--r--. 1 myid  1680 Dec 11 23:25 PropertiesExample.class
+
+cs1302-api-app/target/generated-sources:
+total 0
+drwxr-xr-x. 2 myid 6 Dec 11 23:25 annotations
+
+cs1302-api-app/target/generated-sources/annotations:
+total 0
+
+cs1302-api-app/target/maven-status:
+total 0
+drwxr-xr-x. 3 myid 29 Dec 11 23:25 maven-compiler-plugin
+
+cs1302-api-app/target/maven-status/maven-compiler-plugin:
+total 0
+drwxr-xr-x. 3 myid 37 Dec 11 23:25 compile
+
+cs1302-api-app/target/maven-status/maven-compiler-plugin/compile:
+total 0
+drwxr-xr-x. 2 myid 64 Dec 11 23:25 default-compile
+
+cs1302-api-app/target/maven-status/maven-compiler-plugin/compile/default-compile:
+total 8
+-rw-r--r--. 1 myid 359 Dec 11 23:25 createdFiles.lst
+-rw-r--r--. 1 myid 382 Dec 11 23:25 inputFiles.lst
+/home/myid/sas61231/cs1302-api-app:/home/myid/csci-1302
